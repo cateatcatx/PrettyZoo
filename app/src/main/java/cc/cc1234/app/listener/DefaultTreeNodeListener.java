@@ -6,6 +6,7 @@ import cc.cc1234.specification.listener.ZookeeperNodeListener;
 import cc.cc1234.specification.node.ZkNode;
 import cc.cc1234.specification.util.PathUtils;
 import javafx.application.Platform;
+import javafx.collections.ObservableList;
 import javafx.scene.control.TreeItem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +39,29 @@ public class DefaultTreeNodeListener implements ZookeeperNodeListener {
             final TreeItem<ZkNode> item = treeItemCache.get(event.getServer(), path);
             final ZkNode itemValue = item.getValue();
             itemValue.copyField(event.getNode());
+
+            final String parent = PathUtils.getParent(path);
+            final TreeItem<ZkNode> parentItem = treeItemCache.get(event.getServer(), parent);
+            final ObservableList<TreeItem<ZkNode>> children = parentItem.getChildren();
+            if (itemValue.getData().contains("\"$type\": \"Decoherence.DFS.DfsDeleted, DFSCore\""))
+            {
+                children.remove(item);
+            }
+            else
+            {
+                boolean has = false;
+                for (int i = 0; i < children.size(); i++) {
+                    if (children.get(i).getValue().getPath() == itemValue.getPath()) {
+                        has = true;
+                        break;
+                    }
+                }
+
+                if (!has)
+                {
+                    children.add(item);
+                }
+            }
         });
     }
 
@@ -74,9 +98,12 @@ public class DefaultTreeNodeListener implements ZookeeperNodeListener {
                 // fixme numOfChildren of the node should increase manual
                 final TreeItem<ZkNode> treeItem = new TreeItem<>(node);
                 treeItemCache.add(event.getServer(), path, treeItem);
-                final String parent = PathUtils.getParent(path);
-                final TreeItem<ZkNode> parentItem = treeItemCache.get(event.getServer(), parent);
-                parentItem.getChildren().add(treeItem);
+                
+                if (!node.getData().contains("\"$type\": \"Decoherence.DFS.DfsDeleted, DFSCore\"")) {
+                    final String parent = PathUtils.getParent(path);
+                    final TreeItem<ZkNode> parentItem = treeItemCache.get(event.getServer(), parent);
+                    parentItem.getChildren().add(treeItem);
+                }
             }
         });
     }
